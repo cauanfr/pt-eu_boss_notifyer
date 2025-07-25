@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import discord
 from discord.ext import commands, tasks
@@ -17,8 +17,10 @@ logging.basicConfig(
 logger = logging.getLogger("boss-rotator")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-VOICE_CHANNEL_ID = os.getenv("VOICE_CHANNEL_ID")
+VOICE_CHANNEL_ID = int(os.getenv("VOICE_CHANNEL_ID", "0"))
 AUDIO_PATH = os.path.join("audios", "audio.mp3")
+WAIT_MINUTES = os.getenv("WAIT_MINUTES", "25;28").split(";")
+GMT_MINUS_3 = timezone(timedelta(hours=-3))
 FFMPEG_PATH = "ffmpeg"
 
 
@@ -58,8 +60,9 @@ BOSS_ROTATION = {
 
 
 def get_seconds_until_minute(minute: int) -> int:
-    now = datetime.now()
+    now = datetime.now(GMT_MINUS_3)
     target = now.replace(minute=minute, second=0, microsecond=0)
+    logger.info(f"{now=}")
 
     if now >= target:
         target += timedelta(hours=1)
@@ -123,27 +126,28 @@ async def on_ready():
 @tasks.loop(count=1)
 async def boss_rotation_scheduler():
     voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
+    first, second = WAIT_MINUTES
 
-    logger.info("Esperando até o minuto 25.")
-    await asyncio.sleep(get_seconds_until_minute(25))
+    logger.info(f"Esperando até o minuto {first}.")
+    await asyncio.sleep(get_seconds_until_minute(int(first)))
 
-    current_hour = datetime.now().hour
+    current_hour = datetime.now(GMT_MINUS_3).hour
     next_hour = current_hour % 24
     mapped_hour = next_hour % 12
     boss_list = BOSS_ROTATION.get(mapped_hour, [])
     message = f"5 minutos para à próxima rotação de BOSS: {' -> '.join(boss_list)}."
 
-    logger.info("Executando ação no minuto 25.")
+    logger.info(f"Executando ação no minuto {first}.")
     await play_audio(voice_channel, message)
 
-    logger.info("Esperando até o minuto 28.")
-    await asyncio.sleep(get_seconds_until_minute(28))
+    logger.info(f"Esperando até o minuto {second}.")
+    await asyncio.sleep(get_seconds_until_minute(int(second)))
 
-    logger.info("Executando ação no minuto 28.")
+    logger.info(f"Executando ação no minuto {second}.")
     message = f"2 minutos para à próxima rotação de BOSS: {' -> '.join(boss_list)}."
     await play_audio(voice_channel, message)
 
-    next_wait = get_seconds_until_minute(25)
+    next_wait = get_seconds_until_minute(int(first))
     formatted = format_time(next_wait)
 
     logger.info(f"Próxima execução em: {formatted}.")
