@@ -62,7 +62,6 @@ BOSS_ROTATION = {
 def get_seconds_until_minute(minute: int) -> int:
     now = datetime.now(GMT_MINUS_3)
     target = now.replace(minute=minute, second=0, microsecond=0)
-    logger.info(f"{now=}")
 
     if now >= target:
         target += timedelta(hours=1)
