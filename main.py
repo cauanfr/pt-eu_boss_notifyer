@@ -9,6 +9,18 @@ from dotenv import load_dotenv
 from gtts import gTTS
 
 load_dotenv()
+from configs import (
+    AUDIO_PATH,
+    BOSS_ROTATION,
+    BOT_TOKEN,
+    DEIUS_MINUTES,
+    FURY_MINUTES,
+    VOICE_CHANNEL_ID,
+    FFMPEG_PATH,
+    GMT_MINUS_3,
+    ROTATION_MINUTES,
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] %(levelname)s - %(message)s",
@@ -16,147 +28,132 @@ logging.basicConfig(
 )
 logger = logging.getLogger("boss-rotator")
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-VOICE_CHANNEL_ID = int(os.getenv("VOICE_CHANNEL_ID", "0"))
-AUDIO_PATH = os.path.join("audios", "audio.mp3")
-WAIT_MINUTES = os.getenv("WAIT_MINUTES", "25;28").split(";")
-GMT_MINUS_3 = timezone(timedelta(hours=-3))
-FFMPEG_PATH = "ffmpeg"
-
 
 intents = discord.Intents.all()
 bot = commands.Bot("~", intents=intents)
 
-BOSS_ROTATION = {
-    0: ["Valento", "Kelvezu", "Gorgoniac", "Draxos", "Eadric/Vault"],
-    1: ["Chaos Queen", "Blood Prince", "Devil Shy", "Primal Golem"],
-    2: ["Valento", "Mokova", "Tulla"],
-    3: [
-        "Chaos Queen",
-        "Kelvezu",
-        "Gorgoniac",
-        "Deius",
-        "Greedy",
-        "Aragonian",
-        "Eadric/Vault",
-    ],
-    4: ["Valento", "Blood Prince", "Draxos", "Yagditha"],
-    5: ["Chaos Queen", "Mokova", "Devil Shy", "Ignis"],
-    6: ["Valento", "Kelvezu", "Gorgoniac", "Tulla", "Eadric/Vault"],
-    7: ["Chaos Queen", "Blood Prince", "Eadric/Vault", "Primal Golem (H)"],
-    8: ["Valento", "Mokova", "Draxos"],
-    9: [
-        "Chaos Queen",
-        "Kelvezu",
-        "Gorgoniac",
-        "Devil Shy",
-        "Greedy",
-        "Aragonian",
-        "Eadric/Vault",
-    ],
-    10: ["Valento", "Blood Prince", "Yagditha", "Tulla"],
-    11: ["Chaos Queen", "Mokova", "Ignis"],
-}
 
-
-def get_seconds_until_minute(minute: int) -> int:
+def get_seconds_until(hour: int, minute: int) -> int:
     now = datetime.now(GMT_MINUS_3)
-    target = now.replace(minute=minute, second=0, microsecond=0)
-
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
     if now >= target:
-        target += timedelta(hours=1)
-
+        target += timedelta(days=1)
     return int((target - now).total_seconds())
 
 
-def format_time(seconds: int) -> str:
-    minutes, secs = divmod(seconds, 60)
-    return f"{minutes}m {secs}s" if minutes else f"{secs}s"
+def get_next_event():
+    events = []
+
+    for hour in range(24):
+        mapped_hour = hour % 12
+        data = BOSS_ROTATION[mapped_hour]
+
+        rotation_minutes = ROTATION_MINUTES.split(";")
+        for i, minute in enumerate(rotation_minutes):
+            events.append(
+                {
+                    "hour": hour,
+                    "minute": int(minute),
+                    "type": "rotation",
+                    "boss_list": data["rotation"],
+                    "seconds": get_seconds_until(hour, int(minute)),
+                    "is_first": i == 0,
+                    "rotation_minutes": rotation_minutes,
+                }
+            )
+
+        special_by_minute = {}
+        for boss, minutes in data["special_bosses"].items():
+            for i, minute in enumerate(minutes.split(";")):
+                minute = int(minute)
+                if minute not in special_by_minute:
+                    special_by_minute[minute] = {"bosses": [], "is_first": i == 0}
+                special_by_minute[minute]["bosses"].append(boss)
+                if i == 0:
+                    special_by_minute[minute]["is_first"] = True
+
+        for minute, info in special_by_minute.items():
+            events.append(
+                {
+                    "hour": hour,
+                    "minute": minute,
+                    "type": "special",
+                    "boss_list": data["rotation"],
+                    "seconds": get_seconds_until(hour, minute),
+                    "special_bosses": info["bosses"],
+                    "is_first": info["is_first"],
+                }
+            )
+
+    return min(events, key=lambda x: x["seconds"])
 
 
-def generate_tts_audio(message: str):
-    logger.info("Gerando áudio para a mensagem.")
-    message = message.replace(" -> ", ", ")
-    os.makedirs("audios", exist_ok=True)
-    tts = gTTS(text=message, lang="pt")
-    tts.save(AUDIO_PATH)
-    logger.info("Áudio salvo com sucesso em 'audios/audio.mp3'")
-
-
-def delete_tts_audio():
-    if os.path.exists(AUDIO_PATH):
-        os.remove(AUDIO_PATH)
-        logger.info("Áudio antigo deletado.")
-
-
-async def play_audio(voice_channel: discord.VoiceChannel, message: str):
+async def play_audio(message: str):
     try:
-        generate_tts_audio(message)
-        await asyncio.sleep(1)
+        os.makedirs("audios", exist_ok=True)
+        tts = gTTS(text=message, lang="pt")
+        tts.save(AUDIO_PATH)
 
+        voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
         if voice_channel:
-            logger.info("Conectando ao canal de voz.")
             vc = await voice_channel.connect()
+            vc.play(discord.FFmpegPCMAudio(AUDIO_PATH, executable=FFMPEG_PATH))
 
-            if os.path.isfile(AUDIO_PATH):
-                logger.info("Tocando áudio no canal de voz.")
-                vc.play(discord.FFmpegPCMAudio(AUDIO_PATH, executable=FFMPEG_PATH))
-
-                while not vc.is_playing():
-                    await asyncio.sleep(0.1)
-                while vc.is_playing():
-                    await asyncio.sleep(1)
+            while vc.is_playing():
+                await asyncio.sleep(1)
 
             await vc.disconnect()
-            logger.info("Desconectado do canal de voz.")
-
     except Exception as e:
-        logger.exception(
-            f"Erro durante envio ou reprodução de áudio: {e}.",
-        )
+        logger.exception(f"Erro no áudio: {e}")
 
 
 @bot.event
 async def on_ready():
     logger.info(f"Bot conectado como {bot.user}")
-    boss_rotation_scheduler.start()
+    scheduler.start()
 
 
 @tasks.loop(count=1)
-async def boss_rotation_scheduler():
-    voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
-    first, second = WAIT_MINUTES
+async def scheduler():
+    event = get_next_event()
+    logger.info(
+        f"Próximo: {event['type']} em {event['seconds']}s às {event['hour']:02d}:{event['minute']:02d}"
+    )
 
-    logger.info(f"Esperando até o minuto {first}.")
-    await asyncio.sleep(get_seconds_until_minute(int(first)))
+    await asyncio.sleep(event["seconds"])
 
-    current_hour = datetime.now(GMT_MINUS_3).hour
-    next_hour = current_hour % 24
-    mapped_hour = next_hour % 12
-    boss_list = BOSS_ROTATION.get(mapped_hour, [])
-    message = f"5 minutos para à próxima rotação de BOSS: {' -> '.join(boss_list)}."
+    boss_list = ", ".join(event["boss_list"])
 
-    logger.info(f"Executando ação no minuto {first}.")
-    await play_audio(voice_channel, message)
+    if event["type"] == "rotation":
+        if event["is_first"]:
+            message = f"5 minutos para a próxima rotação: {boss_list}"
+        else:
+            message = f"2 minutos para a próxima rotação: {boss_list}"
 
-    logger.info(f"Esperando até o minuto {second}.")
-    await asyncio.sleep(get_seconds_until_minute(int(second)))
+    elif event["type"] == "special":
+        bosses = event["special_bosses"]
+        if event["is_first"]:
+            if len(bosses) == 1:
+                message = f"5 minutos para o spawn do boss: {bosses[0]}."
+            else:
+                boss_names = " e ".join(bosses)
+                message = f"5 minutos para o spawn dos bosses: {boss_names}."
+        else:
+            minutes_until = int(FURY_MINUTES.split(";")[1]) - 60
+            if len(bosses) == 1:
+                message = f"2 minutos para o spawn do boss {bosses[0]}."
+            else:
+                boss_names = " e ".join(bosses)
+                message = f"2 minutos para o spawn dos bosses: {boss_names}."
 
-    logger.info(f"Executando ação no minuto {second}.")
-    message = f"2 minutos para à próxima rotação de BOSS: {' -> '.join(boss_list)}."
-    await play_audio(voice_channel, message)
+    logger.info(message)
+    await play_audio(message)
 
-    next_wait = get_seconds_until_minute(int(first))
-    formatted = format_time(next_wait)
-
-    logger.info(f"Próxima execução em: {formatted}.")
-
-    boss_rotation_scheduler.restart()
+    scheduler.restart()
 
 
 if __name__ == "__main__":
     try:
-        logger.info("Iniciando o bot...")
         bot.run(BOT_TOKEN)
     except Exception as e:
-        logger.critical(f"Erro crítico ao iniciar o bot: {e}")
+        logger.critical(f"Erro: {e}")
