@@ -34,7 +34,7 @@ BOSS_ROTATION = {
             "Primal Golem",
         ],
         "special_bosses": {
-            "Fury": FURY_MINUTES,
+            "Furia": FURY_MINUTES,
         },
     },
     2: {
@@ -67,7 +67,7 @@ BOSS_ROTATION = {
             "Yagditha",
         ],
         "special_bosses": {
-            "Fury": FURY_MINUTES,
+            "Furia": FURY_MINUTES,
             "Deius": DEIUS_MINUTES,
         },
     },
@@ -89,6 +89,7 @@ BOSS_ROTATION = {
             "Eadric/Vault",
         ],
         "special_bosses": {
+            "Furia": FURY_MINUTES,
             "Deius": DEIUS_MINUTES,
         },
     },
@@ -100,7 +101,7 @@ BOSS_ROTATION = {
             "Primal Golem (H)",
         ],
         "special_bosses": {
-            "Fury": FURY_MINUTES,
+            "Furia": FURY_MINUTES,
         },
     },
     8: {
@@ -131,7 +132,7 @@ BOSS_ROTATION = {
             "Tulla",
         ],
         "special_bosses": {
-            "Fury": FURY_MINUTES,
+            "Furia": FURY_MINUTES,
             "Deius": DEIUS_MINUTES,
         },
     },

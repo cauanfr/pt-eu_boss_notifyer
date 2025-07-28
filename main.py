@@ -131,20 +131,11 @@ async def scheduler():
             message = f"2 minutos para a próxima rotação: {boss_list}"
 
     elif event["type"] == "special":
-        bosses = event["special_bosses"]
+        bosses = ", ".join(event["special_bosses"])
         if event["is_first"]:
-            if len(bosses) == 1:
-                message = f"5 minutos para o spawn do boss: {bosses[0]}."
-            else:
-                boss_names = " e ".join(bosses)
-                message = f"5 minutos para o spawn dos bosses: {boss_names}."
+            message = f"5 minutos para a próxima rotação: {bosses}."
         else:
-            minutes_until = int(FURY_MINUTES.split(";")[1]) - 60
-            if len(bosses) == 1:
-                message = f"2 minutos para o spawn do boss {bosses[0]}."
-            else:
-                boss_names = " e ".join(bosses)
-                message = f"2 minutos para o spawn dos bosses: {boss_names}."
+            message = f"2 minutos para a próxima rotação: {bosses}."
 
     logger.info(message)
     await play_audio(message)
