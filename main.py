@@ -8,17 +8,14 @@ from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from gtts import gTTS
 
-load_dotenv()
 from configs import (
     AUDIO_PATH,
     BOSS_ROTATION,
     BOT_TOKEN,
-    DEIUS_MINUTES,
-    FURY_MINUTES,
-    VOICE_CHANNEL_ID,
     FFMPEG_PATH,
     GMT_MINUS_3,
     ROTATION_MINUTES,
+    VOICE_CHANNEL_ID,
 )
 
 logging.basicConfig(
@@ -145,6 +142,7 @@ async def scheduler():
 
 if __name__ == "__main__":
     try:
+        load_dotenv()
         bot.run(BOT_TOKEN)
     except Exception as e:
         logger.critical(f"Erro: {e}")

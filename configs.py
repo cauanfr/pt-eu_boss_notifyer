@@ -1,6 +1,10 @@
 import os
 from datetime import timedelta, timezone
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 VOICE_CHANNEL_ID = int(os.getenv("VOICE_CHANNEL_ID", "0"))
 AUDIO_PATH = os.path.join("audios", "audio.mp3")
