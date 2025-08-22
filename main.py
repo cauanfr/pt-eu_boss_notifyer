@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from typing import Optional
 
 import discord
 from discord.ext import commands, tasks
@@ -28,6 +29,7 @@ logger = logging.getLogger("boss-rotator")
 
 intents = discord.Intents.all()
 bot = commands.Bot("~", intents=intents)
+voice_client: Optional[discord.VoiceClient] = None
 
 
 def get_seconds_until(hour: int, minute: int) -> int:
@@ -85,27 +87,38 @@ def get_next_event():
     return min(events, key=lambda x: x["seconds"])
 
 
+async def connect_to_voice():
+    global voice_client
+
+    if voice_client is None or not voice_client.is_connected():
+        voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
+        voice_client = await voice_channel.connect(reconnect=True)
+        return voice_client
+
+    return voice_client
+
+
 async def play_audio(message: str):
     try:
+        global voice_client
         os.makedirs("audios", exist_ok=True)
         tts = gTTS(text=message, lang="pt")
         tts.save(AUDIO_PATH)
 
-        voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
-        if voice_channel:
-            vc = await voice_channel.connect()
-            vc.play(discord.FFmpegPCMAudio(AUDIO_PATH, executable=FFMPEG_PATH))
+        voice_client = await connect_to_voice()
+        voice_client.play(discord.FFmpegPCMAudio(AUDIO_PATH, executable=FFMPEG_PATH))
+        while voice_client.is_playing():
+            await asyncio.sleep(5)
 
-            while vc.is_playing():
-                await asyncio.sleep(1)
-
-            await vc.disconnect()
     except Exception as e:
         logger.exception(f"Erro no áudio: {e}")
 
 
 @bot.event
 async def on_ready():
+    global voice_client
+    voice_client = await connect_to_voice()
+
     logger.info(f"Bot conectado como {bot.user}")
     scheduler.start()
 
