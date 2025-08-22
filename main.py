@@ -16,8 +16,10 @@ from configs import (
     FFMPEG_PATH,
     GMT_MINUS_3,
     ROTATION_MINUTES,
+    VG_MAPPER,
     VOICE_CHANNEL_ID,
 )
+from custom_types import EventType
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,7 +43,7 @@ def get_seconds_until(hour: int, minute: int) -> int:
 
 
 def get_next_event():
-    events = []
+    events: list[EventType] = []
 
     for hour in range(24):
         mapped_hour = hour % 12
@@ -58,7 +60,7 @@ def get_next_event():
                     "seconds": get_seconds_until(hour, int(minute)),
                     "is_first": i == 0,
                     "rotation_minutes": rotation_minutes,
-                }
+                },
             )
 
         special_by_minute = {}
@@ -81,8 +83,24 @@ def get_next_event():
                     "seconds": get_seconds_until(hour, minute),
                     "special_bosses": info["bosses"],
                     "is_first": info["is_first"],
-                }
+                },
             )
+
+        for key, value in VG_MAPPER.items():
+            hour, minute = key.split("h")
+            hour = int(hour)
+            minute = int(minute)
+
+            events.append({
+                "hour": hour,
+                "minute": minute,
+                "type": "VG",
+                "boss_list": value,
+                "is_first": True,
+                "rotation_minutes": [minute],
+                "seconds": get_seconds_until(hour, minute),
+            })
+
 
     return min(events, key=lambda x: x["seconds"])
 
@@ -146,6 +164,10 @@ async def scheduler():
             message = f"5 minutos para a próxima rotação: {bosses}."
         else:
             message = f"2 minutos para a próxima rotação: {bosses}."
+
+    elif event["type"] == "VG":
+        bosses = event["boss_list"]
+        message = f"Atenção! Próxima rotação: {bosses}"
 
     logger.info(message)
     await play_audio(message)
