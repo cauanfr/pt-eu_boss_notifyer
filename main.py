@@ -167,7 +167,7 @@ async def scheduler():
 
     elif event["type"] == "VG":
         bosses = event["boss_list"]
-        message = f"Atenção! Próxima rotação: {bosses}"
+        message = f"Atenção! Próxima rotação: VG {bosses}"
 
     logger.info(message)
     await play_audio(message)
