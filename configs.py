@@ -28,7 +28,9 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Draxos",
             "Eadric/Vault",
         ],
-        "special_bosses": {},
+        "special_bosses": {
+            "Deius": DEIUS_MINUTES,
+        },
     },
     1: {
         "rotation": [
@@ -38,7 +40,7 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Primal Golem",
         ],
         "special_bosses": {
-            "Deius": DEIUS_MINUTES,
+            "Furia": FURY_MINUTES,
         },
     },
     2: {
@@ -48,7 +50,7 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Tulla",
         ],
         "special_bosses": {
-            "Furia": FURY_MINUTES,
+            "Deius": DEIUS_MINUTES,
         },
     },
     3: {
@@ -60,9 +62,7 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Aragonian",
             "Eadric/Vault",
         ],
-        "special_bosses": {
-            "Deius": DEIUS_MINUTES,
-        },
+        "special_bosses": {},
     },
     4: {
         "rotation": [
@@ -71,7 +71,10 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Draxos",
             "Yagditha",
         ],
-        "special_bosses": {},
+        "special_bosses": {
+            "Deius": DEIUS_MINUTES,
+            "Furia": FURY_MINUTES,
+        },
     },
     5: {
         "rotation": [
@@ -80,10 +83,7 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Devil Shy",
             "Ignis",
         ],
-        "special_bosses": {
-            "Deius": DEIUS_MINUTES,
-            "Furia": FURY_MINUTES,
-        },
+        "special_bosses": {},
     },
     6: {
         "rotation": [
@@ -93,7 +93,9 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Tulla",
             "Eadric/Vault",
         ],
-        "special_bosses": {},
+        "special_bosses": {
+            "Deius": DEIUS_MINUTES,
+        },
     },
     7: {
         "rotation": [
@@ -103,7 +105,7 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Primal Golem (H)",
         ],
         "special_bosses": {
-            "Deius": DEIUS_MINUTES,
+            "Furia": FURY_MINUTES,
         },
     },
     8: {
@@ -112,9 +114,7 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Mokova",
             "Draxos",
         ],
-        "special_bosses": {
-            "Furia": FURY_MINUTES,
-        },
+        "special_bosses": {},
     },
     9: {
         "rotation": [
@@ -135,7 +135,10 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Yagditha",
             "Tulla",
         ],
-        "special_bosses": {},
+        "special_bosses": {
+            "Deius": DEIUS_MINUTES,
+            "Furia": FURY_MINUTES,
+        },
     },
     11: {
         "rotation": [
@@ -143,10 +146,7 @@ BOSS_ROTATION: dict[int, BossRotation] = {
             "Mokova",
             "Ignis",
         ],
-        "special_bosses": {
-            "Deius": DEIUS_MINUTES,
-            "Furia": FURY_MINUTES,
-        },
+        "special_bosses": {},
     },
 }
 
