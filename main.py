@@ -91,16 +91,17 @@ def get_next_event():
             hour = int(hour)
             minute = int(minute)
 
-            events.append({
-                "hour": hour,
-                "minute": minute,
-                "type": "VG",
-                "boss_list": value,
-                "is_first": True,
-                "rotation_minutes": [minute],
-                "seconds": get_seconds_until(hour, minute),
-            })
-
+            events.append(
+                {
+                    "hour": hour,
+                    "minute": minute,
+                    "type": "VG",
+                    "boss_list": value,
+                    "is_first": True,
+                    "rotation_minutes": [minute],
+                    "seconds": get_seconds_until(hour, minute),
+                }
+            )
 
     return min(events, key=lambda x: x["seconds"])
 
@@ -124,9 +125,22 @@ async def play_audio(message: str):
         tts.save(AUDIO_PATH)
 
         voice_client = await connect_to_voice()
-        voice_client.play(discord.FFmpegPCMAudio(AUDIO_PATH, executable=FFMPEG_PATH))
-        while voice_client.is_playing():
-            await asyncio.sleep(5)
+
+        finished = asyncio.Event()
+
+        def after_play(err):
+            if err:
+                logger.error(f"Erro no áudio (after_play): {err}")
+            finished.set()
+
+        audio = discord.FFmpegPCMAudio(
+            AUDIO_PATH,
+            executable=FFMPEG_PATH,
+            options="-vn -ar 44100 -ac 2 -b:a 192k",
+        )
+        voice_client.play(audio, after=after_play)
+
+        await finished.wait()
 
     except Exception as e:
         logger.exception(f"Erro no áudio: {e}")

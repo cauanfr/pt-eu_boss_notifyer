@@ -26,9 +26,7 @@ BOSS_ROTATION = {
             "Draxos",
             "Eadric/Vault",
         ],
-        "special_bosses": {
-            "Deius": DEIUS_MINUTES,
-        },
+        "special_bosses": {},
     },
     1: {
         "rotation": [
@@ -38,7 +36,7 @@ BOSS_ROTATION = {
             "Primal Golem",
         ],
         "special_bosses": {
-            "Furia": FURY_MINUTES,
+            "Deius": DEIUS_MINUTES,
         },
     },
     2: {
@@ -48,7 +46,7 @@ BOSS_ROTATION = {
             "Tulla",
         ],
         "special_bosses": {
-            "Deius": DEIUS_MINUTES,
+            "Furia": FURY_MINUTES,
         },
     },
     3: {
@@ -56,12 +54,13 @@ BOSS_ROTATION = {
             "Chaos Queen",
             "Kelvezu",
             "Gorgoniac",
-            "Deius",
             "Greedy",
             "Aragonian",
             "Eadric/Vault",
         ],
-        "special_bosses": {},
+        "special_bosses": {
+            "Deius": DEIUS_MINUTES,
+        },
     },
     4: {
         "rotation": [
@@ -70,10 +69,7 @@ BOSS_ROTATION = {
             "Draxos",
             "Yagditha",
         ],
-        "special_bosses": {
-            "Furia": FURY_MINUTES,
-            "Deius": DEIUS_MINUTES,
-        },
+        "special_bosses": {},
     },
     5: {
         "rotation": [
@@ -82,7 +78,10 @@ BOSS_ROTATION = {
             "Devil Shy",
             "Ignis",
         ],
-        "special_bosses": {},
+        "special_bosses": {
+            "Deius": DEIUS_MINUTES,
+            "Furia": FURY_MINUTES,
+        },
     },
     6: {
         "rotation": [
@@ -92,10 +91,7 @@ BOSS_ROTATION = {
             "Tulla",
             "Eadric/Vault",
         ],
-        "special_bosses": {
-            "Furia": FURY_MINUTES,
-            "Deius": DEIUS_MINUTES,
-        },
+        "special_bosses": {},
     },
     7: {
         "rotation": [
@@ -105,7 +101,7 @@ BOSS_ROTATION = {
             "Primal Golem (H)",
         ],
         "special_bosses": {
-            "Furia": FURY_MINUTES,
+            "Deius": DEIUS_MINUTES,
         },
     },
     8: {
@@ -114,7 +110,9 @@ BOSS_ROTATION = {
             "Mokova",
             "Draxos",
         ],
-        "special_bosses": {},
+        "special_bosses": {
+            "Furia": FURY_MINUTES,
+        },
     },
     9: {
         "rotation": [
@@ -135,10 +133,7 @@ BOSS_ROTATION = {
             "Yagditha",
             "Tulla",
         ],
-        "special_bosses": {
-            "Furia": FURY_MINUTES,
-            "Deius": DEIUS_MINUTES,
-        },
+        "special_bosses": {},
     },
     11: {
         "rotation": [
@@ -146,7 +141,10 @@ BOSS_ROTATION = {
             "Mokova",
             "Ignis",
         ],
-        "special_bosses": {},
+        "special_bosses": {
+            "Deius": DEIUS_MINUTES,
+            "Furia": FURY_MINUTES,
+        },
     },
 }
 
