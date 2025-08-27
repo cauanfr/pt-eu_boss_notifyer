@@ -3,6 +3,8 @@ from datetime import timedelta, timezone
 
 from dotenv import load_dotenv
 
+from custom_types import BossRotation
+
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -17,7 +19,7 @@ FURY_MINUTES = os.getenv("FURY_MINUTES", "55;58")
 DEIUS_MINUTES = os.getenv("DEIUS_MINUTES", "55;58")
 
 
-BOSS_ROTATION = {
+BOSS_ROTATION: dict[int, BossRotation] = {
     0: {
         "rotation": [
             "Valento",
@@ -148,7 +150,7 @@ BOSS_ROTATION = {
     },
 }
 
-VG_MAPPER = {
+VG_MAPPER: dict[str, str] = {
     "00h00": "CBA",
     "00h20": "Forgoten Land",
     "00h40": "Iron 1",

@@ -5,7 +5,11 @@ class EventType(TypedDict):
     hour: int
     minute: int
     type: str
-    boss_list: list[str]
     seconds: int
-    is_first: bool
+    message: bool
     rotation_minutes: int
+
+
+class BossRotation(TypedDict):
+    rotation: list[str]
+    special_bosses: dict[str, str]
