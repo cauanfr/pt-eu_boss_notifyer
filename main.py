@@ -42,7 +42,24 @@ def get_seconds_until(hour: int, minute: int) -> int:
     return int((target - now).total_seconds())
 
 
-def get_next_event():
+def format_event_message(boss_list: str, ev_type: str, is_first: bool = True) -> str:
+    def _rotation_message(bosses: str, is_first: bool) -> str:
+        minutes = "5" if is_first else "2"
+        return f"{minutes} minutos para a próxima rotação: {bosses}"
+
+    if ev_type == "default":
+        return _rotation_message(boss_list, is_first)
+
+    elif ev_type == "special":
+        return _rotation_message(boss_list, is_first)
+
+    elif ev_type == "vg":
+        return f"Atenção! Próxima rotação: VG {boss_list}"
+
+    return "Evento desconhecido."
+
+
+def get_next_event() -> EventType:
     events: list[EventType] = []
 
     for hour in range(24):
@@ -51,14 +68,18 @@ def get_next_event():
 
         rotation_minutes = ROTATION_MINUTES.split(";")
         for i, minute in enumerate(rotation_minutes):
+            boss_list = ", ".join(data["rotation"])
             events.append(
                 {
                     "hour": hour,
                     "minute": int(minute),
-                    "type": "rotation",
-                    "boss_list": data["rotation"],
+                    "type": "default",
+                    "message": format_event_message(
+                        boss_list=boss_list,
+                        ev_type="default",
+                        is_first=i == 0,
+                    ),
                     "seconds": get_seconds_until(hour, int(minute)),
-                    "is_first": i == 0,
                     "rotation_minutes": rotation_minutes,
                 },
             )
@@ -74,15 +95,18 @@ def get_next_event():
                     special_by_minute[minute]["is_first"] = True
 
         for minute, info in special_by_minute.items():
+            boss_list = ", ".join(info["bosses"])
             events.append(
                 {
                     "hour": hour,
                     "minute": minute,
                     "type": "special",
-                    "boss_list": data["rotation"],
+                    "message": format_event_message(
+                        boss_list=boss_list,
+                        ev_type="special",
+                        is_first=info["is_first"],
+                    ),
                     "seconds": get_seconds_until(hour, minute),
-                    "special_bosses": info["bosses"],
-                    "is_first": info["is_first"],
                 },
             )
 
@@ -95,18 +119,22 @@ def get_next_event():
                 {
                     "hour": hour,
                     "minute": minute,
-                    "type": "VG",
+                    "type": "vg",
                     "boss_list": value,
                     "is_first": True,
-                    "rotation_minutes": [minute],
+                    "message": format_event_message(
+                        boss_list=boss_list,
+                        ev_type="vg",
+                    ),
                     "seconds": get_seconds_until(hour, minute),
-                }
+                    "rotation_minutes": [minute],
+                },
             )
 
     return min(events, key=lambda x: x["seconds"])
 
 
-async def connect_to_voice():
+async def connect_to_voice() -> discord.VoiceClient:
     global voice_client
 
     if voice_client is None or not voice_client.is_connected():
@@ -117,7 +145,7 @@ async def connect_to_voice():
     return voice_client
 
 
-async def play_audio(message: str):
+async def play_audio(message: str) -> None:
     try:
         global voice_client
         os.makedirs("audios", exist_ok=True)
@@ -158,33 +186,18 @@ async def on_ready():
 @tasks.loop(count=1)
 async def scheduler():
     event = get_next_event()
-    logger.info(
-        f"Próximo: {event['type']} em {event['seconds']}s às {event['hour']:02d}:{event['minute']:02d}"
-    )
+    ev_type = event["type"]
+    ev_seconds = event["seconds"]
+    ev_hour = f"{event['hour']:2d}"
+    ev_minute = f"{event['minute']:2d}"
+    ev_message = event["message"]
+
+    logger.info(f"Próximo: {ev_type} em {ev_seconds}s às {ev_hour}:{ev_minute}")
+    logger.info(ev_message)
 
     await asyncio.sleep(event["seconds"])
 
-    boss_list = ", ".join(event["boss_list"])
-
-    if event["type"] == "rotation":
-        if event["is_first"]:
-            message = f"5 minutos para a próxima rotação: {boss_list}"
-        else:
-            message = f"2 minutos para a próxima rotação: {boss_list}"
-
-    elif event["type"] == "special":
-        bosses = ", ".join(event["special_bosses"])
-        if event["is_first"]:
-            message = f"5 minutos para a próxima rotação: {bosses}."
-        else:
-            message = f"2 minutos para a próxima rotação: {bosses}."
-
-    elif event["type"] == "VG":
-        bosses = event["boss_list"]
-        message = f"Atenção! Próxima rotação: VG {bosses}"
-
-    logger.info(message)
-    await play_audio(message)
+    await play_audio(ev_message)
 
     scheduler.restart()
 
