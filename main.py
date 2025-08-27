@@ -123,7 +123,7 @@ def get_next_event() -> EventType:
                     "boss_list": value,
                     "is_first": True,
                     "message": format_event_message(
-                        boss_list=boss_list,
+                        boss_list=[value],
                         ev_type="vg",
                     ),
                     "seconds": get_seconds_until(hour, minute),
