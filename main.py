@@ -236,7 +236,7 @@ async def play_audio(message: str) -> bool:
         logger.info("Gerando áudio em memória...")
         from io import BytesIO
 
-        tts = gTTS(text=message, lang="pt")
+        tts = gTTS(text=message, lang="pt", tld="com.br")
         audio_buffer = BytesIO()
         tts.write_to_fp(audio_buffer)
         audio_buffer.seek(0)
