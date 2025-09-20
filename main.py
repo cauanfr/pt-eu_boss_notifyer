@@ -134,44 +134,277 @@ def get_next_event() -> EventType:
     return min(events, key=lambda x: x["seconds"])
 
 
-async def connect_to_voice() -> discord.VoiceClient:
+async def connect_to_voice() -> Optional[discord.VoiceClient]:
     global voice_client
 
-    if voice_client is None or not voice_client.is_connected():
+    try:
         voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
-        voice_client = await voice_channel.connect(reconnect=True)
+        if not voice_channel:
+            logger.error(f"Canal de voz {VOICE_CHANNEL_ID} não encontrado!")
+            return None
+
+        existing_client = voice_channel.guild.voice_client
+
+        if existing_client:
+            if (
+                existing_client.channel
+                and existing_client.channel.id == VOICE_CHANNEL_ID
+            ):
+                if existing_client.is_connected():
+                    logger.info("✅ Já conectado no canal correto")
+                    voice_client = existing_client
+                    return voice_client
+
+                logger.warning("🔄 Conexão existente mas não ativa, limpando...")
+                try:
+                    await existing_client.disconnect(force=True)
+                    await asyncio.sleep(0.5)
+                except Exception as e:
+                    logger.warning(f"Erro ao desconectar cliente existente: {e}")
+            else:
+                logger.info("🔄 Movendo para canal correto...")
+                try:
+                    await existing_client.move_to(voice_channel)
+                    voice_client = existing_client
+                    logger.info(f"✅ Movido para {voice_channel.name}")
+                    return voice_client
+                except Exception as e:
+                    logger.warning(f"Erro ao mover canal: {e}, tentando desconectar...")
+                    await existing_client.disconnect(force=True)
+                    await asyncio.sleep(0.5)
+
+        logger.info(f"🔌 Conectando ao canal {voice_channel.name}...")
+        voice_client = await voice_channel.connect(timeout=10.0, reconnect=True)
+        logger.info("✅ Conectado com sucesso!")
         return voice_client
 
-    return voice_client
+    except discord.ClientException as e:
+        if "Already connected" in str(e):
+            logger.warning("⚠️ Discord detectou conexão existente")
 
+            voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
+            if voice_channel and voice_channel.guild.voice_client:
+                existing_client = voice_channel.guild.voice_client
+                if existing_client.is_connected():
+                    voice_client = existing_client
+                    logger.info("✅ Usando conexão existente")
+                    return voice_client
 
-async def play_audio(message: str) -> None:
-    try:
-        global voice_client
-        os.makedirs("audios", exist_ok=True)
-        tts = gTTS(text=message, lang="pt")
-        tts.save(AUDIO_PATH)
+            logger.info("🔄 Forçando nova conexão...")
+            try:
+                if voice_channel and voice_channel.guild.voice_client:
+                    await voice_channel.guild.voice_client.disconnect(force=True)
+                    await asyncio.sleep(1)
 
-        voice_client = await connect_to_voice()
+                voice_client = await voice_channel.connect(timeout=10.0, reconnect=True)
+                logger.info("✅ Nova conexão estabelecida!")
+                return voice_client
 
-        finished = asyncio.Event()
-
-        def after_play(err):
-            if err:
-                logger.error(f"Erro no áudio (after_play): {err}")
-            finished.set()
-
-        audio = discord.FFmpegPCMAudio(
-            AUDIO_PATH,
-            executable=FFMPEG_PATH,
-            options="-vn -ar 44100 -ac 2 -b:a 192k",
-        )
-        voice_client.play(audio, after=after_play)
-
-        await finished.wait()
+            except Exception as retry_error:
+                logger.exception(f"Falha na reconexão: {retry_error}")
+                return None
+        else:
+            logger.exception(f"Erro de conexão: {e}")
+            return None
 
     except Exception as e:
-        logger.exception(f"Erro no áudio: {e}")
+        logger.exception(f"Erro inesperado: {e}")
+        return None
+
+
+async def play_audio(message: str) -> bool:
+    try:
+        global voice_client
+
+        voice_client = await connect_to_voice()
+        if not voice_client:
+            logger.exception("Não foi possível conectar ao canal de voz")
+            return False
+
+        if not voice_client.is_connected():
+            logger.exception("Cliente não está conectado, tentando reconectar...")
+            voice_client = await connect_to_voice()
+            if not voice_client or not voice_client.is_connected():
+                logger.error("Falha na reconexão")
+                return False
+
+        if voice_client.is_playing():
+            logger.info("Parando áudio atual...")
+            voice_client.stop()
+            await asyncio.sleep(0.5)
+
+        logger.info("Gerando áudio em memória...")
+        from io import BytesIO
+
+        tts = gTTS(text=message, lang="pt")
+        audio_buffer = BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
+
+        finished = asyncio.Event()
+        playback_error = None
+
+        def after_play(err):
+            nonlocal playback_error
+            if err:
+                playback_error = err
+                logger.error(f"Erro na reprodução: {err}")
+            finished.set()
+
+        audio_source = discord.FFmpegPCMAudio(
+            audio_buffer,
+            executable=FFMPEG_PATH,
+            options="-vn -ar 44100 -ac 2 -b:a 192k -loglevel error",
+            pipe=True,
+        )
+
+        logger.info("▶️ Iniciando reprodução do áudio...")
+        voice_client.play(audio_source, after=after_play)
+
+        try:
+            await asyncio.wait_for(finished.wait(), timeout=30.0)
+        except asyncio.TimeoutError:
+            logger.exception("Timeout na reprodução")
+            if voice_client.is_playing():
+                voice_client.stop()
+            return False
+
+        if playback_error:
+            logger.exception(f"Erro durante reprodução: {playback_error}")
+            return False
+
+        logger.info("✅ Áudio reproduzido com sucesso usando memória!")
+        return True
+
+    except Exception as e:
+        logger.exception(f"Erro no play_audio: {e}")
+        return False
+
+
+@bot.command(name="reconectar", aliases=["reconnect", "volta"])
+async def force_reconnect(ctx):
+    global voice_client
+
+    logger.info(f"Reconexão forçada solicitada por {ctx.author}")
+
+    try:
+        await ctx.send("Iniciando reconexão forçada...")
+
+        if voice_client:
+            try:
+                if voice_client.is_connected():
+                    await voice_client.disconnect(force=True)
+                    logger.info("Voice client global desconectado")
+            except Exception as e:
+                logger.warning(f"Erro ao desconectar voice_client global: {e}")
+            finally:
+                voice_client = None
+
+        for guild in bot.guilds:
+            if guild.voice_client:
+                try:
+                    await guild.voice_client.disconnect(force=True)
+                    logger.info(f"Desconectado do guild: {guild.name}")
+                except Exception as e:
+                    logger.warning(f"Erro ao desconectar do guild {guild.name}: {e}")
+
+        await asyncio.sleep(2)
+        await ctx.send("Conexões antigas limpas...")
+
+        voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
+        if not voice_channel:
+            await ctx.send(f"Canal de voz {VOICE_CHANNEL_ID} não encontrado!")
+            return
+
+        await ctx.send(f"🔌 Conectando ao canal {voice_channel.name}...")
+
+        voice_client = await voice_channel.connect(timeout=15.0, reconnect=True)
+
+        if voice_client and voice_client.is_connected():
+            await ctx.send(
+                f"Reconectado com sucesso! 🎉\n🔊 Canal: {voice_channel.name}",
+            )
+            logger.info(
+                f"Reconexão forçada bem-sucedida no canal {voice_channel.name}",
+            )
+
+        else:
+            await ctx.send(
+                "Falha na reconexão. Verifique permissões e tente novamente.",
+            )
+            logger.exception("Falha na reconexão forçada")
+
+    except discord.ClientException as e:
+        error_msg = str(e)
+        if "Already connected" in error_msg:
+            await ctx.send(
+                "⚠️ Discord detectou conexão existente. Tentando usar a conexão atual...",
+            )
+
+            voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
+            if voice_channel and voice_channel.guild.voice_client:
+                voice_client = voice_channel.guild.voice_client
+                await ctx.send("✅ Usando conexão existente!")
+            else:
+                await ctx.send("Não foi possível resolver o conflito de conexão")
+        else:
+            await ctx.send(f"Erro Discord: {error_msg[:100]}")
+            logger.exception(f"Erro ClientException na reconexão: {e}")
+
+    except Exception as e:
+        await ctx.send(f"Erro inesperado: {str(e)[:100]}")
+        logger.exception(f"Erro inesperado na reconexão forçada: {e}")
+
+
+@bot.command(name="status")
+async def voice_status(ctx):
+    global voice_client
+
+    embed = discord.Embed(title="Status da Conexão de Voz", color=0x00FF00)
+
+    if voice_client:
+        embed.add_field(
+            name="Voice Client Global",
+            value=f"Conectado: {voice_client.is_connected()}\n"
+            f"Canal: {voice_client.channel.name if voice_client.channel else 'Nenhum'}\n"
+            f"Tocando: {voice_client.is_playing()}",
+            inline=False,
+        )
+    else:
+        embed.add_field(name="Voice Client Global", value="Nenhum", inline=False)
+
+    guild_status = []
+    for guild in bot.guilds:
+        if guild.voice_client:
+            status = (
+                f"{guild.name}: {guild.voice_client.channel.name if guild.voice_client.channel else 'Canal desconhecido'}",
+            )
+        else:
+            status = f"{guild.name}: Desconectado"
+        guild_status.append(status)
+
+    if guild_status:
+        embed.add_field(
+            name="Status por Servidor",
+            value="\n".join(guild_status),
+            inline=False,
+        )
+
+    voice_channel = bot.get_channel(VOICE_CHANNEL_ID)
+    if voice_channel:
+        embed.add_field(
+            name="Canal Configurado",
+            value=f"{voice_channel.name} ({voice_channel.guild.name})",
+            inline=False,
+        )
+    else:
+        embed.add_field(
+            name="Canal Configurado",
+            value="Canal não encontrado",
+            inline=False,
+        )
+
+    await ctx.send(embed=embed)
 
 
 @bot.event
