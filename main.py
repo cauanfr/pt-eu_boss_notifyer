@@ -1,7 +1,7 @@
 import asyncio
 import logging
-import os
 from datetime import datetime, timedelta
+from io import BytesIO
 from typing import Optional
 
 import discord
@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 from gtts import gTTS
 
 from configs import (
-    AUDIO_PATH,
     BOSS_ROTATION,
     BOT_TOKEN,
     FFMPEG_PATH,
@@ -234,7 +233,6 @@ async def play_audio(message: str) -> bool:
             await asyncio.sleep(0.5)
 
         logger.info("Gerando áudio em memória...")
-        from io import BytesIO
 
         tts = gTTS(text=message, lang="pt", tld="com.br")
         audio_buffer = BytesIO()
@@ -436,8 +434,19 @@ async def scheduler():
 
 
 if __name__ == "__main__":
-    try:
-        load_dotenv()
-        bot.run(BOT_TOKEN)
-    except Exception as e:
-        logger.critical(f"Erro: {e}")
+    load_dotenv()
+    max_retries = 5
+    retry_delay = 10
+
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Tentativa de conexão {attempt + 1}/{max_retries}")
+            bot.run(BOT_TOKEN)
+            break
+        except Exception as e:
+            logger.critical(f"Erro na tentativa {attempt + 1}: {e}")
+            if attempt < max_retries - 1:
+                logger.info(f"Aguardando {retry_delay}s para tentar novamente...")
+                asyncio.sleep(retry_delay)
+            else:
+                logger.critical("Todas as tentativas falharam")
